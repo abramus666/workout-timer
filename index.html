@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <title>Workout Timer</title>
+   <link href="timer.css" rel="stylesheet">
+   <script src="timer.js"></script>
+</head>
+<body>
+   <div id="Container">
+      <div id="RoundTimesLabel">Round times [s]</div>
+      <div id="RoundTimes" oninput="processRoundTimesUpdate();" contenteditable="true"></div>
+      <div id="RoundCountLabel">Number of rounds</div>
+      <div id="RoundCount" oninput="processRoundCountUpdate();" contenteditable="true"></div>
+      <div id="RoundClockLabel"></div>
+      <div id="RoundClock"></div>
+      <div id="TotalClockLabel">Remaining time</div>
+      <div id="TotalClock"></div>
+      <button id="StartStop" onclick="startStopClock();"></button>
+   </div>
+</body>
+</html>

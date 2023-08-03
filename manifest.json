@@ -1,0 +1,21 @@
+{
+   "short_name": "Wrk Tmr",
+   "name": "Workout Timer",
+   "start_url": "/workout-timer/",
+   "background_color": "#000000",
+   "display": "fullscreen",
+   "orientation": "portrait",
+   "theme_color": "#002000",
+   "icons": [
+      {
+         "src": "/workout-timer/data/icon192.png",
+         "type": "image/png",
+         "sizes": "192x192"
+      },
+      {
+         "src": "/workout-timer/data/icon512.png",
+         "type": "image/png",
+         "sizes": "512x512"
+      }
+   ]
+}
