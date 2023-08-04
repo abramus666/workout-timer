@@ -89,7 +89,7 @@ function workerTick(event) {
       let elapsed_time_s = event.data - g_start_time;
       let round_time_s = g_round_times.reduce((a,b) => a+b, 0);
       let total_time_s = g_round_count * round_time_s;
-      if (elapsed_time_s > total_time_s) {
+      if (elapsed_time_s >= total_time_s) {
          resetClock();
          playSound("data/end.wav");
       } else {
