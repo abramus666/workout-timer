@@ -118,6 +118,7 @@ function playSoundAndGotoNextRound() {
 function onMessage(msg) {
    if (g_started) {
       if (g_round < g_round_count) {
+         updateRoundNumber();
          playSoundAndGotoNextRound();
          g_worker.postMessage(calculateNextTimestamp());
       } else {
