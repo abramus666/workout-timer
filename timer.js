@@ -5,16 +5,40 @@ let g_round_count = 0;
 
 let g_started = false;
 let g_start_time = null;
-let g_round = null;
-let g_subround = null;
+let g_round = 0;
+let g_subround = 0;
 let g_worker = null;
 
-function getClockText(time_s) {
-   let s = Math.floor(time_s % 60);
-   let m = Math.floor(time_s / 60);
+function getClockText(time_ms) {
+   let t = Math.abs(time_ms);
+   let sign = (t < 0 ? '-' : '');
+   let ds = Math.floor(t / 100) % 10;
+   let s = Math.floor(t / 1000) % 60;
+   let m = Math.floor(t / (1000 * 60));
+   let deciseconds = String(ds);
    let seconds = String(s).padStart(2, '0');
    let minutes = String(m).padStart(2, '0');
-   return `${minutes}:${seconds}`;
+   return `${sign}${minutes}:${seconds}.${deciseconds}`;
+}
+
+function calculateRoundTime() {
+   return g_round_times.reduce((a,b) => a+b, 0);
+}
+
+function calculateTotalTime() {
+   return (g_round_count * calculateRoundTime());
+}
+
+function calculateFinalTimestamp() {
+   return (g_start_time + calculateTotalTime());
+}
+
+function calculateNextTimestamp() {
+   let t = g_start_time + (g_round * calculateRoundTime());
+   for (let i = 0; i < g_subround; i++) {
+      t += g_round_times[i];
+   }
+   return t;
 }
 
 function playSound(path) {
@@ -23,98 +47,100 @@ function playSound(path) {
 }
 
 function processRoundTimesUpdate() {
-   let text = document.getElementById("RoundTimes").innerText;
+   let text = document.getElementById('RoundTimes').innerText;
    text = text.replace(/\D+/g, ',');
-   g_round_times = text.split(',').map((t) => Number(t));
+   g_round_times = text.split(',').map((t) => Number(t) * 1000);
    resetClock();
 }
 
 function processRoundCountUpdate() {
-   let text = document.getElementById("RoundCount").innerText;
+   let text = document.getElementById('RoundCount').innerText;
    g_round_count = Number(text);
    resetClock();
 }
 
-function updateRoundClock(round, subround, time_s) {
-   if (g_started) {
-      if (g_round !== round) {
-         g_round = round;
-         g_subround = subround;
-         playSound("data/start1.wav");
-      } else if (g_subround !== subround) {
-         g_subround = subround;
-         playSound("data/start2.wav");
-      }
-   }
-   document.getElementById("RoundClockLabel").innerText = `Round ${round+1}.${subround+1}`;
-   document.getElementById("RoundClock").innerText = getClockText(time_s);
+function updateRoundNumber() {
+   document.getElementById('RoundClockLabel').innerText = `Round ${g_round+1}.${g_subround+1}`;
 }
 
-function updateTotalClock(time_s) {
-   document.getElementById("TotalClock").innerText = getClockText(time_s);
+function updateRoundClock(time_ms) {
+   document.getElementById('RoundClock').innerText = getClockText(time_ms);
 }
 
-function updateButton() {
-   if (g_started) {
-      document.getElementById("StartStop").innerText = "Stop";
-   } else {
-      document.getElementById("StartStop").innerText = "Start";
-   }
+function updateTotalClock(time_ms) {
+   document.getElementById('TotalClock').innerText = getClockText(time_ms);
 }
 
-function resetClock() {
-   g_started = false;
-   g_start_time = null;
-   g_round = null;
-   g_subround = null;
-   updateButton();
-   updateRoundClock(0, 0, g_round_times[0]);
-   updateTotalClock(g_round_count * g_round_times.reduce((a,b) => a+b, 0));
+function updateButton(text) {
+   document.getElementById('StartStop').innerText = text;
 }
 
 function startStopClock() {
    if (g_started) {
       resetClock();
    } else {
-      g_started = true;
-      updateButton();
+      startClock();
    }
 }
 
-function workerTick(event) {
+function resetClock() {
+   g_started = false;
+   g_round = 0;
+   g_subround = 0;
+   updateRoundNumber();
+   updateRoundClock(g_round_times[0]);
+   updateTotalClock(calculateTotalTime());
+   updateButton('Start');
+}
+
+function startClock() {
+   g_started = true;
+   g_start_time = Date.now();
+   updateButton('Stop');
+   playSoundAndGotoNextRound();
+   g_worker.postMessage(calculateNextTimestamp());
+   window.requestAnimationFrame(onTick);
+}
+
+function playSoundAndGotoNextRound() {
+   if (g_subround == 0) {
+      playSound('data/start1.wav');
+   } else {
+      playSound('data/start2.wav');
+   }
+   g_subround += 1;
+   if (g_subround >= g_round_times.length) {
+      g_subround = 0;
+      g_round += 1;
+   }
+}
+
+function onMessage(msg) {
    if (g_started) {
-      if (g_start_time === null) {
-         g_start_time = event.data;
-      }
-      let elapsed_time_s = event.data - g_start_time;
-      let round_time_s = g_round_times.reduce((a,b) => a+b, 0);
-      let total_time_s = g_round_count * round_time_s;
-      if (elapsed_time_s >= total_time_s) {
-         resetClock();
-         playSound("data/end.wav");
+      if (g_round < g_round_count) {
+         playSoundAndGotoNextRound();
+         g_worker.postMessage(calculateNextTimestamp());
       } else {
-         let subround_time_s = elapsed_time_s % round_time_s;
-         let round = Math.floor(elapsed_time_s / round_time_s);
-         let subround = 0;
-         for (; subround < g_round_times.length; subround++) {
-            if (subround_time_s < g_round_times[subround]) {
-               break;
-            } else {
-               subround_time_s -= g_round_times[subround];
-            }
-         }
-         updateRoundClock(round, subround, (g_round_times[subround] - subround_time_s));
-         updateTotalClock(total_time_s - elapsed_time_s);
+         resetClock();
+         playSound('data/end.wav');
       }
+   }
+}
+
+function onTick(timestamp_ms) {
+   if (g_started) {
+      updateRoundClock(calculateNextTimestamp() - Date.now());
+      updateTotalClock(calculateFinalTimestamp() - Date.now());
+      window.requestAnimationFrame(onTick);
    }
 }
 
 window.onload = function () {
-   document.getElementById("RoundTimes").innerText = "30,60,90";
-   document.getElementById("RoundCount").innerText = "10";
+   document.getElementById('RoundTimes').innerText = '30,60,90';
+   document.getElementById('RoundCount').innerText = '10';
    processRoundTimesUpdate();
    processRoundCountUpdate();
    resetClock();
-   g_worker = new Worker("worker.js");
-   g_worker.onmessage = workerTick;
+   g_worker = new Worker('worker.js');
+   g_worker.onmessage = onMessage;
 };

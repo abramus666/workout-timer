@@ -1,11 +1,13 @@
 'use strict'
 
-let count = 0;
-
-function timedCount() {
-   count += 1;
-   postMessage(count);
-   setTimeout(timedCount, 1000);
+function onTimeout() {
+   postMessage(1);
 }
 
-timedCount();
+self.onmessage = function (msg) {
+   let delay_ms = msg.data - Date.now();
+   if (!(delay_ms > 100)) {
+      delay_ms = 100;
+   }
+   setTimeout(onTimeout, delay_ms);
+}
