@@ -5,6 +5,7 @@ let g_round_count = 0;
 
 let g_started = false;
 let g_start_time = null;
+let g_audio_time = null;
 let g_round = 0;
 let g_subround = 0;
 let g_audio = {};
@@ -108,6 +109,7 @@ function playSoundAndGotoNextRound() {
    } else {
       g_audio.start2.play();
    }
+   g_audio_time = Date.now();
    g_subround += 1;
    if (g_subround >= g_round_times.length) {
       g_subround = 0;
@@ -118,7 +120,9 @@ function playSoundAndGotoNextRound() {
 function onTick(msg) {
    if (g_started && msg.data == 'TICK') {
       let finished = false;
-      if (!(calculateNextTimestamp() > Date.now())) {
+      let timestamp = Date.now();
+      // Do not play next sound earlier than one second after the previous one.
+      if (!(calculateNextTimestamp() > timestamp) && !(g_audio_time + 1000 > timestamp)) {
          if (g_round < g_round_count) {
             updateRoundNumber();
             playSoundAndGotoNextRound();
@@ -127,8 +131,8 @@ function onTick(msg) {
          }
       }
       if (!finished) {
-         updateRoundClock(calculateNextTimestamp() - Date.now());
-         updateTotalClock(calculateFinalTimestamp() - Date.now());
+         updateRoundClock(calculateNextTimestamp() - timestamp);
+         updateTotalClock(calculateFinalTimestamp() - timestamp);
       } else {
          resetClock();
          g_audio.end.play();
