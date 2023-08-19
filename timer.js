@@ -7,11 +7,12 @@ let g_started = false;
 let g_start_time = null;
 let g_round = 0;
 let g_subround = 0;
+let g_audio = {};
 let g_worker = null;
 
 function getClockText(time_ms) {
    let t = Math.abs(time_ms);
-   let sign = (t < 0 ? '-' : '');
+   let sign = (time_ms < 0 ? '-' : '');
    let ds = Math.floor(t / 100) % 10;
    let s = Math.floor(t / 1000) % 60;
    let m = Math.floor(t / (1000 * 60));
@@ -39,11 +40,6 @@ function calculateNextTimestamp() {
       t += g_round_times[i];
    }
    return t;
-}
-
-function playSound(path) {
-   let audio = new Audio(path);
-   audio.play();
 }
 
 function processRoundTimesUpdate() {
@@ -98,15 +94,14 @@ function startClock() {
    g_start_time = Date.now();
    updateButton('Stop');
    playSoundAndGotoNextRound();
-   g_worker.postMessage(calculateNextTimestamp());
-   window.requestAnimationFrame(onTick);
+   g_worker.postMessage('START');
 }
 
 function playSoundAndGotoNextRound() {
    if (g_subround == 0) {
-      playSound('data/start1.wav');
+      g_audio.start1.play();
    } else {
-      playSound('data/start2.wav');
+      g_audio.start2.play();
    }
    g_subround += 1;
    if (g_subround >= g_round_times.length) {
@@ -115,24 +110,25 @@ function playSoundAndGotoNextRound() {
    }
 }
 
-function onMessage(msg) {
-   if (g_started) {
-      if (g_round < g_round_count) {
-         updateRoundNumber();
-         playSoundAndGotoNextRound();
-         g_worker.postMessage(calculateNextTimestamp());
+function onTick(msg) {
+   if (g_started && msg.data == 'TICK') {
+      let finished = false;
+      if (!(calculateNextTimestamp() > Date.now())) {
+         if (g_round < g_round_count) {
+            updateRoundNumber();
+            playSoundAndGotoNextRound();
+         } else {
+            finished = true;
+         }
+      }
+      if (!finished) {
+         updateRoundClock(calculateNextTimestamp() - Date.now());
+         updateTotalClock(calculateFinalTimestamp() - Date.now());
       } else {
          resetClock();
-         playSound('data/end.wav');
+         g_audio.end.play();
+         g_worker.postMessage('STOP');
       }
-   }
-}
-
-function onTick(timestamp_ms) {
-   if (g_started) {
-      updateRoundClock(calculateNextTimestamp() - Date.now());
-      updateTotalClock(calculateFinalTimestamp() - Date.now());
-      window.requestAnimationFrame(onTick);
    }
 }
 
@@ -142,6 +138,9 @@ window.onload = function () {
    processRoundTimesUpdate();
    processRoundCountUpdate();
    resetClock();
+   g_audio.start1 = new Audio('data/start1.wav');
+   g_audio.start2 = new Audio('data/start2.wav');
+   g_audio.end = new Audio('data/end.wav');
    g_worker = new Worker('worker.js');
-   g_worker.onmessage = onMessage;
+   g_worker.onmessage = onTick;
 };

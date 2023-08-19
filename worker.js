@@ -1,13 +1,15 @@
 'use strict'
 
-function onTimeout() {
-   postMessage(1);
+let g_timer = null;
+
+function onInterval() {
+   postMessage('TICK');
 }
 
 self.onmessage = function (msg) {
-   let delay_ms = msg.data - Date.now();
-   if (!(delay_ms > 100)) {
-      delay_ms = 100;
+   if (msg.data == 'START') {
+      g_timer = setInterval(onInterval, 100);
+   } else if (msg.data == 'STOP') {
+      clearInterval(g_timer);
    }
-   setTimeout(onTimeout, delay_ms);
 }
