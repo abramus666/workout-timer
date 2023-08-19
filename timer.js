@@ -73,7 +73,7 @@ function updateButton(text) {
 
 function startStopClock() {
    if (g_started) {
-      resetClock();
+      stopClock();
    } else {
       startClock();
    }
@@ -87,6 +87,11 @@ function resetClock() {
    updateRoundClock(g_round_times[0]);
    updateTotalClock(calculateTotalTime());
    updateButton('Start');
+}
+
+function stopClock() {
+   resetClock();
+   g_worker.postMessage('STOP');
 }
 
 function startClock() {
@@ -127,7 +132,6 @@ function onTick(msg) {
       } else {
          resetClock();
          g_audio.end.play();
-         g_worker.postMessage('STOP');
       }
    }
 }
